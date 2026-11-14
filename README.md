@@ -1,2 +1,2 @@
-# meowsic
+# purrbeat
 custom game

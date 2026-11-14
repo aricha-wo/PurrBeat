@@ -42,7 +42,7 @@ body{background:var(--sky);color:var(--ink);font-family:var(--body);font-size:15
 h2{font-family:var(--display);font-weight:700;font-size:28px;margin:0;color:var(--ink);text-wrap:balance}
 .song{display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border-radius:18px;padding:12px 14px;border:2px solid var(--line)}
 .song .disc{flex:none;width:46px;height:46px;border-radius:50%;
-  background:radial-gradient(circle at 50% 50%,#fff 0 5px,var(--pink) 6px 14px,var(--sun) 15px 19px,var(--mint) 20px 23px);
+  background:radial-gradient(circle at 50% 50%,#fff 0 5px,var(--d1,var(--pink)) 6px 14px,var(--d2,var(--sun)) 15px 19px,var(--d3,var(--mint)) 20px 23px);
   animation:spin 3.75s linear infinite}
 .song b{font-family:var(--display);font-size:18px;display:block}
 .song small{color:var(--ink-soft);font-variant-numeric:tabular-nums}
@@ -147,6 +147,28 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
   background:none;border-radius:10px;color:var(--ink);cursor:pointer}
 .acct-menu button:hover,.acct-menu button:focus-visible{background:#fff3f8}
 .acct-menu .out{color:#d13b6f}
+/* accuracy graph */
+.graph-wrap{display:flex;flex-direction:column;gap:4px;align-items:center;background:#fff;border:2px solid var(--line);border-radius:16px;padding:8px 8px 6px}
+.graph-title{margin:0;font-weight:700;font-size:13px;color:var(--ink-soft);align-self:flex-start;padding-left:4px}
+.graph-wrap canvas{display:block;max-width:100%}
+/* song picker */
+.picker{display:flex;align-items:center;gap:6px}
+.picker .song{flex:1;min-width:0}
+.arrow{flex:none;width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:#fff;color:var(--ink);
+  font-family:var(--display);font-weight:700;font-size:20px;cursor:pointer;line-height:1}
+.arrow:disabled{opacity:.35;cursor:default}
+.song.locked{background:#f6f2fa}
+.song.locked .disc{filter:grayscale(1);opacity:.5;animation:none}
+.song .lock{display:block;font-size:12.5px;font-weight:700;color:var(--pink-d)}
+.dots{display:flex;justify-content:center;gap:6px;margin-top:-4px}
+.dots span{width:7px;height:7px;border-radius:50%;background:#e2d6ee}
+.dots span.on{background:var(--pink)}
+.lv{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+.lv b{font-family:var(--display);font-size:15px;color:#fff;background:var(--lilac);border-radius:999px;padding:1px 10px;flex:none}
+.lv .bar{flex:1;height:9px;border-radius:999px;background:#efe4f7;overflow:hidden}
+.lv .bar i{display:block;height:100%;background:linear-gradient(90deg,#a98bff,#ff86b3);border-radius:999px}
+.rsel{font:inherit;font-weight:700;font-size:15px;padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:#fff;color:var(--ink);width:100%}
+.lvup{margin:0;font-family:var(--display);font-weight:700;font-size:16px;color:#7656e0}
 /* gifts */
 .gifts-wrap{display:flex;flex-direction:column;gap:8px;background:#fff6fb;border-radius:16px;padding:10px 8px}
 .gifts-wrap:empty,.gifts-wrap[hidden]{display:none}
@@ -222,15 +244,22 @@ body.has-acct .overlay{padding-top:calc(66px + env(safe-area-inset-top,0px))}
     <h1 class="logo" aria-label="Purr Beat"><span>P</span><span>u</span><span>r</span><span>r</span> <span>B</span><span>e</span><span>a</span><span>t</span></h1>
     <p class="sub">เกมจังหวะกับเจ้าแมวส้ม เคาะ ค้าง ลาก ไปตามเพลง</p>
     <p class="who" id="who"></p>
-    <div class="song">
-      <div class="disc" aria-hidden="true"></div>
-      <div><b>Candy Paw Parade</b><small>128 BPM · 1:38 · ชิปทูนป๊อป</small></div>
+    <div class="lv" id="lvBar" hidden></div>
+    <div class="picker">
+      <button class="arrow" id="songPrev" aria-label="เพลงก่อนหน้า">‹</button>
+      <div class="song" id="songCard" aria-live="polite">
+        <div class="disc" aria-hidden="true"></div>
+        <div><b id="songTitle"></b><small id="songInfo"></small><span class="lock" id="songLock" hidden></span></div>
+      </div>
+      <button class="arrow" id="songNext" aria-label="เพลงถัดไป">›</button>
     </div>
+    <div class="dots" id="songDots" aria-hidden="true"></div>
     <div class="diffs" id="diffs" role="radiogroup" aria-label="ระดับความยาก"></div>
     <p class="how" id="howText"></p>
     <div class="row">
       <button class="btn big" id="playBtn">เริ่มเล่น</button>
     </div>
+    <p class="best" id="tutHint"><button class="link" id="tutBtn">ครั้งแรก? ลองบทเรียนสั้นๆ ก่อน (30 วินาที)</button></p>
     <div class="row">
       <button class="btn alt" id="rankBtn">อันดับ</button>
       <button class="btn alt" id="wardBtn">แต่งตัวแมว</button>
@@ -294,8 +323,13 @@ body.has-acct .overlay{padding-top:calc(66px + env(safe-area-inset-top,0px))}
       <div><span style="color:#2f86df">GOOD</span><b id="rO">0</b></div>
       <div><span style="color:#8d81a3">MISS</span><b id="rM">0</b></div>
     </div>
+    <div class="graph-wrap">
+      <p class="graph-title">ความแม่นยำตลอดเพลง</p>
+      <canvas id="rGraph" role="img"></canvas>
+      <p class="note" id="rGraphNote"></p>
+    </div>
     <p class="extra">
-      <span>คะแนนจังหวะ <b id="rBase">0</b></span><span>โบนัสฟีเวอร์ <b id="rBonus">0</b></span>
+      <span>คะแนนจังหวะ <b id="rBase">0</b></span><span>โบนัสคอมโบ <b id="rBonus">0</b></span>
       <span class="fast">FAST <b id="rFast">0</b></span><span class="slow">SLOW <b id="rSlow">0</b></span>
     </p>
     <div class="gifts-wrap" id="rGiftWrap">
@@ -330,6 +364,7 @@ body.has-acct .overlay{padding-top:calc(66px + env(safe-area-inset-top,0px))}
 <div id="rankDlg" class="overlay" hidden>
   <div class="card">
     <h2>ตารางอันดับ</h2>
+    <select class="rsel" id="rankSong" aria-label="เลือกเพลง"></select>
     <div class="diffs" id="rankTabs" role="radiogroup" aria-label="ระดับความยาก"></div>
     <ol class="board" id="board"></ol>
     <p class="note" id="rankNote"></p>
@@ -404,14 +439,19 @@ const WEIGHT = { perfect: 1, great: 0.7, good: 0.4, miss: 0 };
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- settings ---------- */
-const DEFAULTS = { keys: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'], speed: 5, offset: 0, hitsound: true, diff: 'normal' };
+const DEFAULTS = { keys: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'], speed: 5, offset: 0, hitsound: true, diff: 'normal', song: 'candy-paw-parade' };
 const DIFFS = {
   easy:   { label: 'Easy',   th: 'สบายๆ',    c: '#4fd1a8', cd: '#1fa982', gap: 4, slideBars: [1] },
   normal: { label: 'Normal', th: 'กำลังดี',   c: '#5aaeff', cd: '#2b83dd', gap: 2, slideBars: [1, 5] },
   hard:   { label: 'Hard',   th: 'มือโปร',   c: '#ff86b3', cd: '#e0558c', gap: 2, slideBars: [1, 5], extra: true }
 };
 const DIFF_KEYS = ['easy', 'normal', 'hard'];
-const FEVER_AT = 50, FEVER_MULT = 0.5;
+// scoring: points per judgement x combo multiplier. Note heads 100, hold ends 50, slide ticks 20 (scaled by PERFECT/GREAT/GOOD weight).
+const PTS = { head: 100, tail: 50, tick: 20 };
+const MULT_AT = 25, FEVER_AT = 50;              // combo 25+: x1.5, combo 50+ (fever): x2
+const comboMult = c => c >= FEVER_AT ? 2 : c >= MULT_AT ? 1.5 : 1;
+const SCORE_VER = 'v2';                         // scores before this change used a 1,000,000 scale; keep the boards apart
+const scoreKey = song => `${song}-${SCORE_VER}`;
 const FS_COL = { fast: '#2f7fe0', slow: '#e8742c' };
 const clone = o => JSON.parse(JSON.stringify(o));
 function loadSettings() {
@@ -465,18 +505,18 @@ const LocalStore = {
     return {};
   },
   async submit(song, diff, entry) {
-    const all = this._read(), key = song + '/' + diff;
+    const all = this._read(), key = scoreKey(song) + '/' + diff;
     const list = (all[key] || []).concat([entry]).sort((a, b) => b.score - a.score || a.at - b.at).slice(0, 50);
     all[key] = list;
     try { localStorage.setItem('purrbeat-scores', JSON.stringify(all)); } catch (e) {}
     return this.top(song, diff);
   },
-  async top(song, diff) { return (this._read()[song + '/' + diff] || []).map(e => Object.assign({ uid: e.name }, e)); }
+  async top(song, diff) { return (this._read()[scoreKey(song) + '/' + diff] || []).map(e => Object.assign({ uid: e.name }, e)); }
 };
 const OnlineStore = {
   async submit(song, diff, e) {
     const { error } = await sb.from('scores').insert({
-      song_id: song, difficulty: diff, score: e.score, base: e.base, accuracy: e.acc, grade: e.rank,
+      song_id: scoreKey(song), difficulty: diff, score: e.score, base: e.base, accuracy: e.acc, grade: e.rank,
       full_combo: e.fc, max_combo: e.combo, fast: e.fast, slow: e.slow
     });
     if (error) throw error;
@@ -484,7 +524,7 @@ const OnlineStore = {
   },
   async top(song, diff) {
     const cols = 'user_id,display_name,score,base,accuracy,grade,full_combo,max_combo,created_at';
-    const q = sel => sb.from('leaderboard').select(sel).eq('song_id', song).eq('difficulty', diff)
+    const q = sel => sb.from('leaderboard').select(sel).eq('song_id', scoreKey(song)).eq('difficulty', diff)
       .order('score', { ascending: false }).order('created_at', { ascending: true }).limit(50);
     let { data, error } = await q(cols + ',equipped');
     if (error) ({ data, error } = await q(cols)); // older database without outfits
@@ -494,7 +534,6 @@ const OnlineStore = {
   }
 };
 const Store = sb ? OnlineStore : LocalStore;
-const SONG_ID = 'candy-paw-parade';
 // leaderboard view: each player's best run only
 const bestPerPlayer = list => { const seen = new Set(), out = []; for (const e of list) if (!seen.has(e.uid)) { seen.add(e.uid); out.push(e); } return out; };
 function keyLabel(code) {
@@ -517,27 +556,68 @@ function rng(seed) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-/* ---------- song (composed in code) ---------- */
-const BPM = 128, BEAT = 60 / BPM, STEP = BEAT / 4, BAR = BEAT * 4;
+/* ---------- songs (composed in code) ----------
+   Every song shares one structure; a definition changes tempo, key, chords, melody seed, rhythms, drums and sound.
+   Everything is composed in C and moved to the song's key (tr) when notes are emitted. */
 const SECTIONS = [
   { name: 'intro', bars: 4 }, { name: 'verse', bars: 8 }, { name: 'chorus', bars: 8 }, { name: 'verse', bars: 8 },
   { name: 'chorus', bars: 8 }, { name: 'bridge', bars: 4 }, { name: 'chorus', bars: 8 }, { name: 'outro', bars: 4 }
 ];
-const PROG = [ { root: 36, tones: [0, 4, 7] }, { root: 43, tones: [0, 4, 7] }, { root: 45, tones: [0, 3, 7] }, { root: 41, tones: [0, 4, 7] } ];
 const SCALE = [67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84, 86, 88];
-const VERSE_R = [[0,2],[2,2],[4,4],[10,2],[12,4],[16,2],[18,2],[20,2],[22,2],[24,8]];
-const CHORUS_R = [[0,2],[2,2],[4,2],[6,2],[8,4],[12,4],[16,2],[18,2],[20,2],[22,2],[24,2],[26,2],[28,4]];
-const CHORUS_R2 = [[0,3],[3,3],[6,2],[8,2],[10,2],[12,4],[16,2],[18,2],[20,4],[24,8]];
-const BRIDGE_R = [[0,8],[8,8],[16,8],[24,8]];
-const OUTRO_R = [[0,4],[4,4],[8,4],[12,4],[16,16]];
+const CH = { C: { root: 36, tones: [0, 4, 7] }, G: { root: 43, tones: [0, 4, 7] }, Am: { root: 45, tones: [0, 3, 7] },
+  F: { root: 41, tones: [0, 4, 7] }, Em: { root: 40, tones: [0, 3, 7] }, Dm: { root: 38, tones: [0, 3, 7] } };
+// rhythm sets: [step, length] per 2-bar phrase (16 steps per bar). Chorus phrases must keep a note on step 16 (slides start there).
+const RHY = {
+  pop: {
+    verse: [[0,2],[2,2],[4,4],[10,2],[12,4],[16,2],[18,2],[20,2],[22,2],[24,8]],
+    chorus: [[0,2],[2,2],[4,2],[6,2],[8,4],[12,4],[16,2],[18,2],[20,2],[22,2],[24,2],[26,2],[28,4]],
+    chorus2: [[0,3],[3,3],[6,2],[8,2],[10,2],[12,4],[16,2],[18,2],[20,4],[24,8]],
+    bridge: [[0,8],[8,8],[16,8],[24,8]], outro: [[0,4],[4,4],[8,4],[12,4],[16,16]]
+  },
+  groove: {
+    verse: [[0,3],[3,3],[6,2],[10,2],[12,4],[16,3],[19,3],[22,2],[24,8]],
+    chorus: [[0,2],[2,4],[6,2],[8,2],[10,2],[12,4],[16,2],[18,4],[22,2],[24,8]],
+    chorus2: [[0,4],[4,2],[6,2],[8,4],[12,4],[16,3],[19,3],[22,2],[24,2],[26,2],[28,4]],
+    bridge: [[0,12],[12,4],[16,12],[28,4]], outro: [[0,6],[6,2],[8,8],[16,16]]
+  },
+  drive: {
+    verse: [[0,2],[2,2],[4,2],[6,2],[8,4],[12,4],[16,2],[18,2],[20,2],[22,2],[24,8]],
+    chorus: [[0,2],[2,2],[4,2],[6,2],[8,2],[10,2],[12,4],[16,2],[18,2],[20,2],[22,2],[24,2],[26,2],[28,4]],
+    chorus2: [[0,4],[4,2],[6,2],[8,2],[10,2],[12,4],[16,2],[18,2],[20,2],[22,2],[24,8]],
+    bridge: [[0,8],[8,8],[16,8],[24,8]], outro: [[0,2],[2,2],[4,4],[8,8],[16,16]]
+  }
+};
+const SONGS = [
+  { id: 'candy-paw-parade', title: 'Candy Paw Parade', style: 'ชิปทูนป๊อป', bpm: 128, tr: 0, seed: 1114, unlock: 1,
+    prog: ['C', 'G', 'Am', 'F'], rhy: 'pop', drums: 'pop', lead: 'square', arp: 'triangle', disc: ['#ff86b3', '#ffc24a', '#4fd1a8'] },
+  { id: 'moonlight-meow', title: 'Moonlight Meow', style: 'ซิตี้ป๊อปยามค่ำ', bpm: 140, tr: 2, seed: 2207, unlock: 10,
+    prog: ['Am', 'F', 'C', 'G'], rhy: 'groove', drums: 'half', lead: 'triangle', arp: 'sine', disc: ['#7b8cff', '#a98bff', '#ffe08a'] },
+  { id: 'sardine-rush', title: 'Sardine Rush', style: 'ยูโรบีตปลากระป๋อง', bpm: 156, tr: -3, seed: 3391, unlock: 20,
+    prog: ['F', 'G', 'Em', 'Am'], rhy: 'drive', drums: 'four', lead: 'sawtooth', arp: 'square', disc: ['#4fd1a8', '#5aaeff', '#ff8a00'] },
+  { id: 'starry-whiskers', title: 'Starry Whiskers', style: 'ทรานซ์ดวงดาว', bpm: 170, tr: 1, seed: 4583, unlock: 30,
+    prog: ['Am', 'G', 'F', 'G'], rhy: 'drive', drums: 'four', lead: 'square', arp: 'sawtooth', disc: ['#ff5c9c', '#a98bff', '#5aaeff'] }
+];
+const SONG_BY_ID = Object.fromEntries(SONGS.map(s => [s.id, s]));
+let BPM = 128, BEAT = 60 / BPM, STEP = BEAT / 4, BAR = BEAT * 4;
+let SONG = null, SONG_ID = SONGS[0].id;
+const songCache = {};
+const fmtLen = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+// switch the global clock constants (BPM, BEAT, STEP, BAR) and SONG to a definition
+function setSong(def) {
+  BPM = def.bpm; BEAT = 60 / BPM; STEP = BEAT / 4; BAR = BEAT * 4;
+  SONG = songCache[def.id] || (songCache[def.id] = def.build ? def.build() : buildSong(def));
+  SONG_ID = def.id;
+  return SONG;
+}
 
 function nearestChordTone(idx, pcs) {
   for (let d = 0; d < SCALE.length; d++) for (const s of [idx - d, idx + d])
     if (s >= 0 && s < SCALE.length && pcs.includes(SCALE[s] % 12)) return s;
   return idx;
 }
-function buildSong() {
-  const R = rng(1114);
+function buildSong(def) {
+  const R = rng(def.seed), tr = def.tr || 0, rhy = RHY[def.rhy] || RHY.pop, dr = def.drums || 'pop';
+  const PROG = def.prog.map(k => CH[k]);
   const audio = [], lead = [], secs = [], motifs = {};
   const A = (t, i, o) => audio.push(Object.assign({ t, i }, o || {}));
   const getMotif = (key, len) => {
@@ -560,46 +640,56 @@ function buildSong() {
       const tb = bar * BAR, last = b === s.bars - 1;
       const ch = (N === 'outro' && last) ? PROG[0] : PROG[bar % 4];
       const root = ch.root;
-      // drums
+      // drums: intro / bridge / outro are shared; verse + chorus follow the song's drum style
+      const main = N === 'verse' || N === 'chorus';
       for (let k = 0; k < 4; k++) {
         const t = tb + k * BEAT;
         if (N === 'intro') { if (k % 2 === 0) A(t, 'kick'); if (b >= 2 && k % 2) A(t, 'snare'); }
         else if (N === 'bridge') { if (k === 0) A(t, 'kick'); if (k === 2) A(t, 'snare', { v: 0.7 }); A(t + BEAT / 2, 'hat', { v: 0.4 }); }
         else if (N === 'outro' && last) { if (k === 0) A(t, 'kick'); }
+        else if (main && dr === 'half') { // laid-back: kick on 1 and the "and" of 2, snare on 3
+          if (k === 0) A(t, 'kick'); if (k === 1) A(t + BEAT / 2, 'kick', { v: 0.8 }); if (k === 2) A(t, 'snare');
+          if (k === 3 && N === 'chorus') A(t + BEAT / 2, 'kick', { v: 0.6 });
+        }
         else { A(t, 'kick'); if (k % 2) A(t, 'snare'); }
-        if (N === 'verse' || N === 'chorus' || (N === 'intro' && b >= 1) || (N === 'outro' && !last)) {
-          A(t + BEAT / 2, 'hat', { open: N === 'chorus' });
-          if (N === 'chorus') { A(t + STEP, 'hat', { v: 0.45 }); A(t + 3 * STEP, 'hat', { v: 0.45 }); }
-          else if (N === 'verse') A(t, 'hat', { v: 0.55 });
+        if (main || (N === 'intro' && b >= 1) || (N === 'outro' && !last)) {
+          if (main && dr === 'four') { A(t + BEAT / 2, 'hat', { open: true }); A(t + STEP, 'hat', { v: 0.4 }); A(t + 3 * STEP, 'hat', { v: 0.4 }); }
+          else if (main && dr === 'half') { A(t, 'hat', { v: 0.5 }); A(t + BEAT * 0.66, 'hat', { v: 0.4 }); }
+          else {
+            A(t + BEAT / 2, 'hat', { open: N === 'chorus' });
+            if (N === 'chorus') { A(t + STEP, 'hat', { v: 0.45 }); A(t + 3 * STEP, 'hat', { v: 0.45 }); }
+            else if (N === 'verse') A(t, 'hat', { v: 0.55 });
+          }
         }
       }
-      if (last && (N === 'intro' || N === 'verse' || N === 'chorus'))
+      if (last && (N === 'intro' || main))
         for (let k = 0; k < 4; k++) A(tb + 3 * BEAT + k * STEP, 'snare', { v: 0.35 + k * 0.15 });
       // bass
-      if (N === 'intro') { if (b >= 2) for (let k = 0; k < 4; k++) A(tb + k * BEAT, 'bass', { n: root, d: BEAT * 0.8 }); }
-      else if (N === 'bridge') { A(tb, 'bass', { n: root, d: BEAT * 1.8 }); A(tb + 2 * BEAT, 'bass', { n: root + 7, d: BEAT * 1.8 }); }
-      else if (N === 'outro' && last) A(tb, 'bass', { n: root, d: BAR });
-      else for (let k = 0; k < 8; k++) A(tb + k * BEAT / 2, 'bass', { n: root + (k % 2 ? 12 : 0), d: BEAT * 0.42 });
+      if (N === 'intro') { if (b >= 2) for (let k = 0; k < 4; k++) A(tb + k * BEAT, 'bass', { n: root + tr, d: BEAT * 0.8 }); }
+      else if (N === 'bridge') { A(tb, 'bass', { n: root + tr, d: BEAT * 1.8 }); A(tb + 2 * BEAT, 'bass', { n: root + 7 + tr, d: BEAT * 1.8 }); }
+      else if (N === 'outro' && last) A(tb, 'bass', { n: root + tr, d: BAR });
+      else if (dr === 'half') for (const [k, o, d] of [[0, 0, 1.4], [1.5, 0, 0.4], [2, 7, 0.9], [3, 12, 0.4], [3.5, 10, 0.4]]) A(tb + k * BEAT, 'bass', { n: root + o + tr, d: BEAT * d });
+      else for (let k = 0; k < 8; k++) A(tb + k * BEAT / 2, 'bass', { n: root + (k % 2 ? 12 : 0) + tr, d: BEAT * 0.42 });
       // arpeggio / pad
       const cn = ch.tones.map(x => 60 + ((root + x) % 12)).sort((a, c) => a - c);
-      const seq = [cn[0], cn[1], cn[2], cn[0] + 12];
+      const seq = [cn[0], cn[1], cn[2], cn[0] + 12].map(n => n + tr);
       if (N === 'chorus' || N === 'bridge') for (let k = 0; k < 16; k++) A(tb + k * STEP, 'arp', { n: seq[k % 4] + (N === 'chorus' ? 12 : 0), d: STEP, v: N === 'bridge' ? 0.8 : 0.55 });
       else if (N === 'outro' && last) A(tb, 'pad', { ns: seq, d: BAR * 1.2 });
       else for (let k = 0; k < 8; k++) A(tb + k * BEAT / 2, 'arp', { n: seq[k % 4], d: STEP * 1.5, v: 0.7 });
       // lead melody, written per 2-bar phrase
       if (b % 2 === 0) {
         const p = b / 2; let rh = null, key = null;
-        if (N === 'verse') { rh = VERSE_R; key = 'v' + (p % 2); }
-        else if (N === 'chorus') { rh = p % 2 ? CHORUS_R2 : CHORUS_R; key = 'c' + (p % 2); }
-        else if (N === 'bridge') { rh = BRIDGE_R; key = 'b' + p; }
-        else if (N === 'outro' && b === 0) { rh = OUTRO_R; key = 'o'; }
+        if (N === 'verse') { rh = rhy.verse; key = 'v' + (p % 2); }
+        else if (N === 'chorus') { rh = p % 2 ? rhy.chorus2 : rhy.chorus; key = 'c' + (p % 2); }
+        else if (N === 'bridge') { rh = rhy.bridge; key = 'b' + p; }
+        else if (N === 'outro' && b === 0) { rh = rhy.outro; key = 'o'; }
         if (rh) {
           const m = getMotif(key, rh.length);
           rh.forEach(([st, len], i) => {
             const nb = bar + Math.floor(st / 16), chB = PROG[nb % 4];
             const pcs = chB.tones.map(x => (chB.root + x) % 12);
             let idx = m[i]; if (st % 8 === 0) idx = nearestChordTone(idx, pcs);
-            const pitch = SCALE[idx], t = tb + st * STEP, d = len * STEP;
+            const pitch = SCALE[idx] + tr, t = tb + st * STEP, d = len * STEP;
             lead.push({ t, d, p: pitch, steps: len, sec: N, si, b: b + Math.floor(st / 16), st });
             A(t, 'lead', { n: pitch, d });
           });
@@ -608,9 +698,56 @@ function buildSong() {
     }
   });
   audio.sort((a, c) => a.t - c.t);
-  return { audio, lead, secs, end: bar * BAR };
+  return { def, audio, lead, secs, end: bar * BAR };
 }
-const SONG = buildSong();
+/* tutorial: a slow, steady groove with a scripted chart in three steps (tap, hold, slide) */
+const TUT_STEPS = [
+  { from: 0, to: 2, text: 'บทเรียน: ทำตามทีละขั้นนะ' },
+  { from: 2, to: 6, text: '① แตะ: แตะเลนตอนโน้ตตกถึงวงอุ้งเท้า' },
+  { from: 6, to: 10, text: '② โน้ตยาว: กดค้างไว้จนสุดแถบ' },
+  { from: 10, to: 14.5, text: '③ ดาวม่วง: กดค้างแล้วลากตามเส้น' },
+  { from: 14.5, to: 99, text: 'เก่งมาก! พร้อมเล่นเพลงจริงแล้ว' }
+];
+const TUTORIAL = { id: 'tutorial', title: 'บทเรียนเหมียว', style: 'ฝึกเล่น', bpm: 96, unlock: 1, tutorial: true, lead: 'triangle', arp: 'triangle',
+  build() {
+    const audio = [], bars = 15, A = (t, i, o) => audio.push(Object.assign({ t, i }, o || {}));
+    const prog = ['C', 'Am', 'F', 'G'];
+    for (let b = 0; b < bars; b++) {
+      const tb = b * BAR, ch = CH[prog[b % 4]], last = b === bars - 1;
+      for (let k = 0; k < 4; k++) {
+        if (last && k > 0) break;
+        A(tb + k * BEAT, 'kick', { v: k % 2 ? 0.6 : 1 });
+        if (k % 2) A(tb + k * BEAT, 'snare', { v: 0.6 });
+        if (!last) A(tb + k * BEAT + BEAT / 2, 'hat', { v: 0.5 });
+        if (!last) A(tb + k * BEAT, 'bass', { n: ch.root, d: BEAT * 0.8 });
+      }
+      const cn = ch.tones.map(x => 60 + ((ch.root + x) % 12)).sort((a, c) => a - c);
+      A(tb, 'pad', { ns: cn, d: last ? BAR * 1.5 : BAR * 0.95 });
+    }
+    audio.sort((a, c) => a.t - c.t);
+    return { def: TUTORIAL, audio, lead: [], secs: [{ name: 'intro', t0: 0, t1: bars * BAR }], end: bars * BAR };
+  }
+};
+function buildTutorialChart() {
+  const n = [], at = (bar, beat) => bar * BAR + beat * BEAT;
+  // ① taps: two bars in the middle lanes, then a sweep over all four
+  [[2, 0, 1], [2, 2, 2], [3, 0, 1], [3, 2, 2], [4, 0, 0], [4, 1, 1], [4, 2, 2], [4, 3, 3], [5, 0, 3], [5, 1, 2], [5, 2, 1], [5, 3, 0]]
+    .forEach(([b, k, l]) => n.push({ type: 'tap', t: at(b, k), lane: l }));
+  // ② holds: two beats each
+  [[6, 0, 1], [7, 0, 2], [8, 0, 0], [9, 0, 3]].forEach(([b, k, l]) => n.push({ type: 'hold', t: at(b, k), end: at(b, k + 2), lane: l }));
+  // ③ slides: across and back
+  const slide = pts => {
+    const t = pts[0].t, end = pts[pts.length - 1].t, ticks = [];
+    for (let x = t + BEAT / 2; x <= end + 1e-4; x += BEAT / 2) ticks.push({ t: x, done: false });
+    n.push({ type: 'slide', t, end, pts, ticks, lane: Math.round(pts[0].lane) });
+  };
+  slide([{ t: at(10, 0), lane: 0 }, { t: at(11, 0), lane: 3 }]);
+  slide([{ t: at(12, 0), lane: 3 }, { t: at(12, 2), lane: 1 }, { t: at(13, 0), lane: 1 }, { t: at(13, 2), lane: 2 }]);
+  n.push({ type: 'tap', t: at(14, 0), lane: 1 }, { type: 'tap', t: at(14, 0), lane: 2, chord: true });
+  return n.sort((a, c) => a.t - c.t);
+}
+const tutDone = () => { try { return localStorage.getItem('purrbeat-tutorial') === '1'; } catch (e) { return false; } };
+setSong(SONGS[0]);
 
 /* ---------- auto chart from the song ---------- */
 function buildChart(song, diff) {
@@ -785,10 +922,15 @@ function playEv(ev) {
     case 'snare': sSnare(o, t, v); break;
     case 'hat': sNoise(o, t, ev.open ? 0.16 : 0.045, 'highpass', 7500, 0.5, (ev.open ? 0.11 : 0.09) * v); break;
     case 'bass': sTone(o, t, ev.n, ev.d, 'square', 0.16, { cutoff: 900, sustain: 0.5 }); break;
-    case 'lead':
-      sTone(o, t, ev.n, ev.d * 0.92, 'square', 0.065, { sustain: 0.6, release: 0.08 });
+    case 'lead': {
+      const w = (SONG.def && SONG.def.lead) || 'square', g = w === 'sawtooth' ? 0.05 : w === 'triangle' || w === 'sine' ? 0.11 : 0.065;
+      sTone(o, t, ev.n, ev.d * 0.92, w, g, { sustain: 0.6, release: 0.08, cutoff: w === 'sawtooth' ? 3200 : 0 });
       sTone(o, t, ev.n + 12, ev.d * 0.92, 'triangle', 0.045, { detune: 6, sustain: 0.5, release: 0.08 }); break;
-    case 'arp': sTone(o, t, ev.n, Math.min(ev.d, 0.16), 'triangle', 0.06 * v, { sustain: 0.3, release: 0.05 }); break;
+    }
+    case 'arp': {
+      const w = (SONG.def && SONG.def.arp) || 'triangle', g = w === 'sawtooth' || w === 'square' ? 0.035 : 0.06;
+      sTone(o, t, ev.n, Math.min(ev.d, 0.16), w, g * v, { sustain: 0.3, release: 0.05 }); break;
+    }
     case 'pad': for (const n of ev.ns) sTone(o, t, n, ev.d, 'triangle', 0.06, { attack: 0.03, sustain: 0.7, release: 0.8 }); break;
   }
 }
@@ -865,16 +1007,21 @@ function setMood(type, dur) {
   mood = { type, until: now + dur };
 }
 
+let playMode = 'song'; // 'song' | 'tutorial' (retry buttons replay the same mode)
 async function startRun() {
   ensureAudio();
   try { await AC.resume(); } catch (e) {}
   stopRun();
   runOut = AC.createGain(); runOut.connect(master);
-  const diff = S.diff;
-  const notes = buildChart(SONG, diff);
+  const tut = playMode === 'tutorial';
+  let def = SONG_BY_ID[S.song] || SONGS[0];
+  if (!songOpen(def)) def = SONGS[0];
+  setSong(tut ? TUTORIAL : def);
+  const diff = tut ? 'easy' : S.diff;
+  const notes = tut ? buildTutorialChart() : buildChart(SONG, diff);
   let total = 0;
   for (const n of notes) { n.headDone = false; n.done = false; total += n.type === 'tap' ? 1 : n.type === 'hold' ? 2 : 1 + n.ticks.length; }
-  G = { notes, total, diff, res: { perfect: 0, great: 0, good: 0, miss: 0, sum: 0 }, combo: 0, maxCombo: 0, score: 0, base: 0,
+  G = { notes, total, diff, tut, hits: [], songId: SONG_ID, basePts: 0, multToast: -1e9, res: { perfect: 0, great: 0, good: 0, miss: 0, sum: 0 }, combo: 0, maxCombo: 0, score: 0, base: 0,
         bonus: 0, fever: false, feverAt: -1e9, fv: 0, fevers: 0, fast: 0, slow: 0, gifts: [], giftAt: new Set(), giftToast: -1e9, giftTier: null,
         shownScore: 0, comboPop: 0, lastT: -3, paused: false, ai: 0, startAt: AC.currentTime + 2.2 };
   keyLanes.clear(); pointers.clear();
@@ -915,6 +1062,7 @@ async function quitToTitle() {
 function judge(g, lane, o) {
   o = o || {};
   const R = G.res; R[g]++; R.sum += WEIGHT[g];
+  G.hits.push({ t: G.lastT, w: WEIGHT[g] }); // song time of each judgement, for the accuracy graph
   if (g === 'miss') { G.combo = 0; G.fever = false; setMood('sad', 0.6); }
   else {
     G.combo++; if (G.combo > G.maxCombo) G.maxCombo = G.combo; G.comboPop = 1;
@@ -924,10 +1072,13 @@ function judge(g, lane, o) {
     if (tier && !G.giftAt.has(G.combo)) {
       G.giftAt.add(G.combo); G.gifts.push(tier); G.giftToast = performance.now(); G.giftTier = tier;
     }
-    if (G.fever) G.bonus += FEVER_MULT * WEIGHT[g] * 1e6 / G.total;
+    if (G.combo === MULT_AT) G.multToast = performance.now();
+    const pts = WEIGHT[g] * (o.tick ? PTS.tick : o.tail ? PTS.tail : PTS.head);
+    G.basePts += pts;
+    G.bonus += pts * (comboMult(G.combo) - 1);
   }
   if (o.fs) G[o.fs]++;
-  G.base = Math.round(1e6 * R.sum / G.total);
+  G.base = Math.round(G.basePts);
   G.score = G.base + Math.round(G.bonus);
   const x = o.x != null ? o.x : laneX(lane), py = L.judgeY - L.noteR * 1.9;
   if (!o.tick) {
@@ -965,10 +1116,10 @@ function update(t) {
     }
     if (n.type === 'hold' && n.holding) {
       if (laneHeld(n.lane)) n.rel = 0; else n.rel += dt;
-      if (t >= n.end) { n.done = true; n.holding = false; if (n.rel < 0.15) judge('perfect', n.lane); else { n.broken = true; judge('miss', n.lane); } }
+      if (t >= n.end) { n.done = true; n.holding = false; if (n.rel < 0.15) judge('perfect', n.lane, { tail: true }); else { n.broken = true; judge('miss', n.lane); } }
       else if (n.rel >= 0.15) {
         n.holding = false; n.done = true;
-        if (t >= n.end - 0.2) judge('perfect', n.lane); else { n.broken = true; judge('miss', n.lane); }
+        if (t >= n.end - 0.2) judge('perfect', n.lane, { tail: true }); else { n.broken = true; judge('miss', n.lane); }
       } else if (n.rel === 0 && Math.random() < dt * 16) burst(laneX(n.lane), L.judgeY, 'tick');
     }
     if (n.type === 'slide' && n.headDone) {
@@ -998,9 +1149,10 @@ async function finish() {
   const R = G.res, acc = R.sum / G.total, run = G;
   const rank = acc >= 0.95 ? 'S' : acc >= 0.88 ? 'A' : acc >= 0.75 ? 'B' : acc >= 0.6 ? 'C' : 'D';
   const msgs = { S: 'เหมียวสุดยอด! จังหวะเป๊ะมาก', A: 'เก่งมากเลยเหมียว', B: 'ดีเลย อีกนิดเดียว', C: 'ลองอีกรอบนะเหมียว', D: 'ไม่เป็นไร ฝึกอีกนิดนะ' };
-  $('#rDiff').textContent = `${DIFFS[run.diff].label} · Candy Paw Parade`;
+  $('#rDiff').textContent = run.tut ? SONG.def.title : `${DIFFS[run.diff].label} · ${SONG.def.title}`;
   $('#rRank').textContent = rank;
-  $('#rMsg').textContent = msgs[rank];
+  $('#rMsg').textContent = run.tut ? 'จบบทเรียนแล้ว! ไปลุยเพลงจริงกันเลย' : msgs[rank];
+  drawAccGraph($('#rGraph'), run);
   $('#rScore').textContent = fmt(run.score);
   $('#rAcc').textContent = (acc * 100).toFixed(2) + '%';
   $('#rCombo').textContent = run.maxCombo;
@@ -1010,6 +1162,13 @@ async function finish() {
   $('#rFC').hidden = R.miss > 0;
   $('#rNew').hidden = true; $('#rPlace').textContent = '';
   setMood(rank === 'D' ? 'sad' : 'happy', 3);
+  if (run.tut) { // tutorial: no rewards, no ranking
+    try { localStorage.setItem('purrbeat-tutorial', '1'); } catch (e) {}
+    $('#rGiftWrap').hidden = true;
+    $('#rPlace').textContent = 'บทเรียนไม่นับคะแนน กด "หน้าแรก" แล้วเลือกเพลงได้เลย';
+    showOnly('#result');
+    return;
+  }
   const rewards = grantRewards(run, rank, R.miss === 0);
   showGifts(rewards);
   showOnly('#result');
@@ -1022,8 +1181,8 @@ async function finish() {
     combo: run.maxCombo, fast: run.fast, slow: run.slow, at: Date.now(), eq: myEquipped() };
   let before, list;
   try {
-    before = (await Store.top(SONG_ID, run.diff)).find(e => e.uid === uid);
-    list = bestPerPlayer(await Store.submit(SONG_ID, run.diff, entry));
+    before = (await Store.top(run.songId, run.diff)).find(e => e.uid === uid);
+    list = bestPerPlayer(await Store.submit(run.songId, run.diff, entry));
   } catch (e) {
     console.error(e);
     if (G === run) place.textContent = 'บันทึกคะแนนไม่สำเร็จ ลองเช็กอินเทอร์เน็ตแล้วเล่นใหม่อีกครั้ง';
@@ -1391,7 +1550,20 @@ const BOX = {
 };
 const BOX_AT = { 50: 'common', 100: 'rare', 150: 'epic', 200: 'epic' }; // combo milestones, once each per run
 const RUN_COINS = { S: 20, A: 15, B: 10, C: 6, D: 3 }, FC_COINS = 5;
+/* player level: EXP from each finished song; new songs unlock at Lv 10 / 20 / 30 */
+const LV_BASE = 120, LV_GROW = 15, LV_MAX = 99, LV_COINS = 30;
+const DIFF_EXP = { easy: 1, normal: 1.3, hard: 1.6 };
+const expFor = lv => LV_BASE + LV_GROW * (lv - 1); // EXP needed to go from lv to lv + 1
+function levelOf(exp) {
+  let lv = 1, rest = Math.max(0, Math.floor(exp || 0));
+  while (lv < LV_MAX && rest >= expFor(lv)) { rest -= expFor(lv); lv++; }
+  return { lv, into: rest, need: expFor(lv) };
+}
+const runExp = run => Math.max(1, Math.round((run.res.sum / run.total) * 100 * DIFF_EXP[run.diff] + run.maxCombo / 5));
+const myLevel = () => { const p = activeProf(); return p ? levelOf(p.exp).lv : 1; };
+const songOpen = def => myLevel() >= def.unlock;
 const normProf = p => ({
+  exp: Math.max(0, Math.floor(Number(p && p.exp) || 0)),
   coins: Math.max(0, Math.floor(Number(p && p.coins) || 0)),
   inventory: Array.isArray(p && p.inventory) ? [...new Set(p.inventory.filter(id => ITEM[id]))] : [],
   equipped: (p && p.equipped && typeof p.equipped === 'object' && !Array.isArray(p.equipped)) ? Object.assign({}, p.equipped) : {}
@@ -1409,7 +1581,7 @@ async function saveProf() {
   const p = activeProf();
   if (!p) return false;
   if (!sb) { try { localStorage.setItem('purrbeat-profile', JSON.stringify(p)); } catch (e) {} return true; }
-  const { error } = await sb.from('profiles').update({ coins: p.coins, inventory: p.inventory, equipped: p.equipped }).eq('id', Auth.user.id);
+  const { error } = await sb.from('profiles').update({ exp: p.exp, coins: p.coins, inventory: p.inventory, equipped: p.equipped }).eq('id', Auth.user.id);
   if (error) { console.error(error); return false; }
   return true;
 }
@@ -1422,8 +1594,13 @@ function rollBox(tier) {
 }
 function grantRewards(run, rank, fc) {
   const p = activeProf();
-  const out = { coins: RUN_COINS[rank] + (fc ? FC_COINS : 0), gifts: [], locked: !p };
+  const out = { coins: RUN_COINS[rank] + (fc ? FC_COINS : 0), gifts: [], locked: !p, exp: runExp(run), lvUp: 0, lv: 1, songs: [] };
   if (!p) { out.gifts = run.gifts.map(tier => ({ tier })); return out; }
+  const before = levelOf(p.exp).lv;
+  p.exp += out.exp;
+  const after = levelOf(p.exp).lv;
+  out.lv = after; out.lvUp = after - before;
+  if (out.lvUp > 0) { out.coins += LV_COINS * out.lvUp; out.songs = SONGS.filter(s => s.unlock > before && s.unlock <= after); }
   p.coins += out.coins;
   for (const tier of run.gifts) {
     const id = rollBox(tier), dup = p.inventory.includes(id);
@@ -1543,9 +1720,9 @@ function drawHud(t) {
   cx.textBaseline = 'middle';
   if (!L.narrow) {
     cx.textAlign = 'left'; cx.fillStyle = INK; cx.font = `600 ${16 * k}px ${FONT}`;
-    cx.fillText('Candy Paw Parade', left, 26 * k + 4);
+    cx.fillText(SONG.def.title, left, 26 * k + 4);
     cx.fillStyle = INK_SOFT; cx.font = `500 ${12 * k}px ${FONT}`;
-    cx.fillText('128 BPM · ' + DIFFS[G.diff].label, left, 46 * k + 4);
+    cx.fillText(`${SONG.def.bpm} BPM · ` + (G.tut ? 'บทเรียน' : DIFFS[G.diff].label), left, 46 * k + 4);
   } else {
     cx.textAlign = 'right'; cx.fillStyle = DIFFS[G.diff].cd; cx.font = `700 ${12 * k}px ${FONT}`;
     cx.fillText(DIFFS[G.diff].label.toUpperCase(), right, 64 * k + 4);
@@ -1554,12 +1731,22 @@ function drawHud(t) {
   cx.textAlign = 'right'; cx.fillStyle = INK_SOFT; cx.font = `600 ${12 * k}px ${FONT}`;
   cx.fillText('SCORE', right, 20 * k + 4);
   cx.fillStyle = INK; cx.font = `700 ${26 * k}px ${FONT}`;
-  cx.fillText(String(Math.round(G.shownScore)).padStart(7, '0'), right, 44 * k + 4);
+  cx.fillText(fmt(G.shownScore), right, 44 * k + 4);
   G.comboPop = Math.max(0, G.comboPop - 0.08);
   const py = L.hudH - 4, p = Math.max(0, Math.min(1, t / SONG.end));
   cx.fillStyle = 'rgba(255,255,255,0.75)'; rr(left, py - 3, right - left, 6, 3); cx.fill();
   cx.fillStyle = '#ff86b3'; rr(left, py - 3, Math.max(6, (right - left) * p), 6, 3); cx.fill();
   cx.fillStyle = '#fff'; circle(left + (right - left) * p, py, 6); cx.fill(); cx.lineWidth = 2.5; cx.strokeStyle = '#ff86b3'; cx.stroke();
+  if (G.tut) { // tutorial instructions, one card per step
+    const bar = t / BAR, step = TUT_STEPS.find(s => bar >= s.from - 0.5 && bar < s.to - 0.5) || TUT_STEPS[0];
+    const fs = Math.min(17 * k, (L.laneW * 4 - 24) / 15);
+    cx.save(); cx.font = `700 ${fs}px ${FONT}`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    const tw = Math.min(cx.measureText(step.text).width + 28, L.laneW * 4 - 8), bx = L.x0 + 2 * L.laneW, by = L.top + (L.judgeY - L.top) * 0.14;
+    cx.fillStyle = 'rgba(255,255,255,0.92)'; rr(bx - tw / 2, by - fs, tw, fs * 2, fs); cx.fill();
+    cx.strokeStyle = '#ff86b3'; cx.lineWidth = 2.5; cx.stroke();
+    cx.fillStyle = INK; cx.fillText(step.text, bx, by, tw - 16);
+    cx.restore();
+  }
   if (t < 0.2) {
     const txt = t < -0.6 ? 'READY?' : 'GO!';
     const a = t < -0.6 ? 1 : Math.max(0, 1 - (t + 0.6) / 0.8);
@@ -1604,7 +1791,14 @@ function drawCombo(now) {
     cx.strokeText(gt, 0, 62 * k); cx.fillStyle = BOX[G.giftTier].col; cx.fillText(gt, 0, 62 * k);
     cx.restore();
   }
-  const lbl = fever ? 'FEVER  ×1.5' : 'COMBO';
+  const mAge = (now - G.multToast) / 1000;
+  if (mAge >= 0 && mAge < 1.4 && !fever) {
+    cx.save(); cx.globalAlpha = mAge > 1 ? (1.4 - mAge) / 0.4 : 1;
+    cx.font = `700 ${18 * k * Math.min(1, 0.6 + mAge * 4)}px ${FONT}`; cx.lineWidth = 6;
+    cx.strokeText('คะแนน ×1.5!', 0, -40 * k); cx.fillStyle = '#7656e0'; cx.fillText('คะแนน ×1.5!', 0, -40 * k);
+    cx.restore();
+  }
+  const lbl = fever ? 'FEVER  คะแนน ×2' : G.combo >= MULT_AT ? 'COMBO  คะแนน ×1.5' : 'COMBO';
   cx.font = `700 ${13 * k}px ${FONT}`; cx.lineWidth = 5; cx.strokeText(lbl, 0, 32 * k);
   cx.fillStyle = fever ? '#e0558c' : INK_SOFT; cx.fillText(lbl, 0, 32 * k);
   cx.restore();
@@ -1742,7 +1936,8 @@ function refreshTitle() {
   $('#howText').innerHTML =
     `<b>แตะ:</b> แตะตรงไหนในเลนก็ได้ หรือกด ${k} ตอนโน้ตตกถึงวงอุ้งเท้า (กดเร็วไปนิดก็ยังนับ)<br>` +
     `<b>โน้ตยาว:</b> กดค้างจนสุดแถบ<br>` +
-    `<b>ดาวม่วง:</b> กดค้างแล้วลากซ้ายขวาตามเส้น`;
+    `<b>ดาวม่วง:</b> กดค้างแล้วลากซ้ายขวาตามเส้น<br>` +
+    `<b>คอมโบ:</b> ถึง 25 คะแนน ×1.5 · ถึง 50 เข้าฟีเวอร์ คะแนน ×2`;
   const who = $('#who'); who.textContent = '';
   const el = (tag, cls, text, onClick) => {
     const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = text;
@@ -1755,13 +1950,52 @@ function refreshTitle() {
   else who.append(el('button', 'link', 'ตั้งชื่อผู้เล่น', () => openNameDlg('#title')));
   updateAcct();
   renderDiffs($('#diffs'), S.diff, d => { S.diff = d; saveSettings(); refreshTitle(); });
+  renderLevel(); renderSongPicker();
+  $('#tutBtn').textContent = tutDone() ? 'เล่นบทเรียนอีกครั้ง' : 'ครั้งแรก? ลองบทเรียนสั้นๆ ก่อน (30 วินาที)';
   const bt = $('#bestText'); bt.textContent = '';
-  const uid = meId(), want = S.diff;
+  const uid = meId(), want = S.diff, wantSong = curSongDef().id;
   if (!uid) return;
-  Store.top(SONG_ID, want).then(list => {
+  Store.top(wantSong, want).then(list => {
     const mine = list.find(e => e.uid === uid);
-    if (want === S.diff) bt.textContent = mine ? `สถิติของคุณ (${DIFFS[want].label}) ${fmt(mine.score)} · แรงก์ ${mine.rank}` : '';
+    if (want === S.diff && wantSong === curSongDef().id)
+      bt.textContent = mine ? `สถิติของคุณ (${DIFFS[want].label}) ${fmt(mine.score)} · แรงก์ ${mine.rank}` : '';
   }).catch(e => console.error(e));
+}
+/* song picker + level bar */
+const curSongDef = () => SONG_BY_ID[S.song] || SONGS[0];
+function renderSongPicker() {
+  const def = curSongDef(), i = SONGS.indexOf(def), open = songOpen(def);
+  const card = $('#songCard'), disc = card.querySelector('.disc');
+  disc.style.setProperty('--d1', def.disc[0]); disc.style.setProperty('--d2', def.disc[1]); disc.style.setProperty('--d3', def.disc[2]);
+  card.classList.toggle('locked', !open);
+  $('#songTitle').textContent = def.title;
+  const bars = SECTIONS.reduce((a, s) => a + s.bars, 0);
+  $('#songInfo').textContent = `${def.bpm} BPM · ${fmtLen(bars * 4 * 60 / def.bpm)} · ${def.style}`;
+  const lock = $('#songLock'); lock.hidden = open; lock.textContent = open ? '' : `🔒 ปลดล็อกที่ Lv ${def.unlock}`;
+  $('#songPrev').disabled = i <= 0; $('#songNext').disabled = i >= SONGS.length - 1;
+  const dots = $('#songDots'); dots.textContent = '';
+  SONGS.forEach((s, k) => { const d = document.createElement('span'); if (k === i) d.className = 'on'; dots.append(d); });
+  const pb = $('#playBtn'); pb.disabled = !open; pb.textContent = open ? 'เริ่มเล่น' : `🔒 Lv ${def.unlock}`;
+}
+function pickSong(step) {
+  const i = Math.max(0, Math.min(SONGS.length - 1, SONGS.indexOf(curSongDef()) + step));
+  S.song = SONGS[i].id; saveSettings(); refreshTitle();
+}
+$('#songPrev').addEventListener('click', () => pickSong(-1));
+$('#songNext').addEventListener('click', () => pickSong(1));
+function renderLevel() {
+  const p = activeProf(), box = $('#lvBar');
+  if (!p) { box.hidden = true; return; }
+  const L2 = levelOf(p.exp);
+  box.textContent = '';
+  const b = document.createElement('b'); b.textContent = 'Lv ' + L2.lv;
+  const bar = document.createElement('span'); bar.className = 'bar';
+  const fill = document.createElement('i'); fill.style.width = (100 * L2.into / L2.need).toFixed(1) + '%'; bar.append(fill);
+  const t = document.createElement('span'); t.textContent = `${L2.into}/${L2.need} EXP`;
+  const nextSong = SONGS.find(s => s.unlock > L2.lv);
+  box.title = nextSong ? `เพลงถัดไปปลดล็อกที่ Lv ${nextSong.unlock}` : 'ปลดล็อกครบทุกเพลงแล้ว';
+  box.setAttribute('aria-label', `เลเวล ${L2.lv} EXP ${L2.into} จาก ${L2.need}. ${box.title}`);
+  box.append(b, bar, t); box.hidden = false;
 }
 function renderDiffs(box, cur, onPick) {
   box.textContent = '';
@@ -1876,7 +2110,15 @@ $('#nameOk').addEventListener('click', saveNameDlg);
 $('#nameCancel').addEventListener('click', closeNameDlg);
 /* leaderboard */
 let rankFrom = '#title', rankDiff = 'normal';
-function openRank(from, diff) { rankFrom = from; rankDiff = diff || S.diff; renderRank(); showOnly('#rankDlg'); }
+let rankSong = SONGS[0].id;
+function openRank(from, diff, song) {
+  rankFrom = from; rankDiff = diff || S.diff; rankSong = song || curSongDef().id;
+  const sel = $('#rankSong'); sel.textContent = '';
+  for (const s of SONGS) { const o = document.createElement('option'); o.value = s.id; o.textContent = s.title; sel.append(o); }
+  sel.value = rankSong;
+  renderRank(); showOnly('#rankDlg');
+}
+$('#rankSong').addEventListener('change', e => { rankSong = e.target.value; renderRank(); });
 function closeRank() { showOnly(rankFrom); }
 async function renderRank() {
   renderDiffs($('#rankTabs'), rankDiff, d => { rankDiff = d; renderRank(); });
@@ -1886,11 +2128,11 @@ async function renderRank() {
   const ol = $('#board');
   const msg = text => { ol.textContent = ''; const li = document.createElement('li'); li.className = 'empty'; li.textContent = text; ol.append(li); };
   msg('กำลังโหลด…');
-  const want = rankDiff;
+  const want = rankDiff, wantSong = rankSong, same = () => want === rankDiff && wantSong === rankSong;
   let list;
-  try { list = bestPerPlayer(await Store.top(SONG_ID, want)).slice(0, 10); }
-  catch (e) { console.error(e); if (want === rankDiff) msg('โหลดอันดับไม่สำเร็จ ลองเช็กอินเทอร์เน็ต'); return; }
-  if (want !== rankDiff) return;
+  try { list = bestPerPlayer(await Store.top(wantSong, want)).slice(0, 10); }
+  catch (e) { console.error(e); if (same()) msg('โหลดอันดับไม่สำเร็จ ลองเช็กอินเทอร์เน็ต'); return; }
+  if (!same()) return;
   if (!list.length) { msg('ยังไม่มีใครเล่นระดับนี้ เป็นคนแรกเลย!'); return; }
   ol.textContent = '';
   const me = meId();
@@ -1905,6 +2147,47 @@ async function renderRank() {
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = e.rank;
     li.append(pos, av, nm, sc, rk); ol.append(li);
   });
+}
+/* accuracy over the song: one bar per slice, colour by accuracy, red dots for misses, choruses shaded */
+function drawAccGraph(cvs, run) {
+  const w = Math.max(220, Math.min(400, window.innerWidth - 90)), h = 92;
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  cvs.width = Math.round(w * d); cvs.height = Math.round(h * d); cvs.style.width = w + 'px'; cvs.style.height = h + 'px';
+  const c = cvs.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+  const end = SONG.end, N = run.tut ? 15 : 26, seg = end / N, top = 10, bot = h - 18, ph = bot - top;
+  const X = t => 4 + (w - 8) * Math.max(0, Math.min(1, t / end));
+  c.fillStyle = '#fff0f6';
+  for (const s of SONG.secs) if (s.name === 'chorus') { c.fillRect(X(s.t0), top - 6, X(s.t1) - X(s.t0), ph + 6); }
+  c.fillStyle = '#c7b9d8'; c.font = `600 10px ${FONT}`; c.textBaseline = 'alphabetic';
+  let firstChorus = true;
+  for (const s of SONG.secs) if (s.name === 'chorus' && firstChorus) { c.textAlign = 'left'; c.fillText('ท่อนฮุก', X(s.t0) + 3, top + 4); firstChorus = false; }
+  const sum = new Array(N).fill(0), cnt = new Array(N).fill(0), miss = new Array(N).fill(0);
+  for (const hit of run.hits) {
+    const i = Math.max(0, Math.min(N - 1, Math.floor(hit.t / seg)));
+    sum[i] += hit.w; cnt[i]++; if (hit.w === 0) miss[i]++;
+  }
+  const bw = (w - 8) / N;
+  let worst = -1, worstAcc = 2;
+  for (let i = 0; i < N; i++) {
+    const x = 4 + i * bw + 1.5;
+    if (!cnt[i]) { c.fillStyle = '#efe4f7'; c.fillRect(x, bot - 2, bw - 3, 2); continue; }
+    const a = sum[i] / cnt[i];
+    if (cnt[i] >= 3 && a < worstAcc) { worstAcc = a; worst = i; }
+    c.fillStyle = a >= 0.95 ? '#4fd1a8' : a >= 0.8 ? '#ffc24a' : '#ff6b8a';
+    const bh = Math.max(3, ph * a);
+    rrOn(c, x, bot - bh, bw - 3, bh, Math.min(4, (bw - 3) / 2)); c.fill();
+    if (miss[i]) { c.fillStyle = '#e0365e'; c.beginPath(); c.arc(x + (bw - 3) / 2, top - 2, Math.min(3.5, 1.8 + miss[i] * 0.5), 0, Math.PI * 2); c.fill(); }
+  }
+  c.strokeStyle = '#e2d6ee'; c.lineWidth = 1; c.beginPath(); c.moveTo(4, bot + 0.5); c.lineTo(w - 4, bot + 0.5); c.stroke();
+  c.fillStyle = '#9a8bb0'; c.textAlign = 'left'; c.fillText('0:00', 4, h - 4); c.textAlign = 'right'; c.fillText(fmtLen(end), w - 4, h - 4);
+  const note = $('#rGraphNote');
+  const totalMiss = miss.reduce((a, b) => a + b, 0);
+  if (worst < 0 || worstAcc >= 0.95) note.textContent = 'แม่นทั้งเพลงเลย! แท่งเขียวคือช่วงที่เป๊ะ';
+  else note.textContent = `ช่วงที่ควรฝึก: ${fmtLen(worst * seg)}–${fmtLen((worst + 1) * seg)} · จุดแดงคือช่วงที่มี MISS`;
+  cvs.setAttribute('aria-label', `กราฟความแม่นยำ ${N} ช่วง พลาดรวม ${totalMiss} ครั้ง. ${note.textContent}`);
+}
+function rrOn(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.lineTo(x + w, y + h); c.lineTo(x, y + h); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 /* gift boxes on the result screen */
 function giftEl(g) {
@@ -1952,7 +2235,16 @@ function showGifts(rw) {
     title.textContent = `ได้กล่อง ${rw.gifts.length} ใบ`;
     const sm = document.createElement('small'); sm.textContent = 'แต่ต้องเข้าสู่ระบบก่อนถึงจะเปิดและเก็บของได้'; title.append(sm);
   } else {
-    title.textContent = `+${rw.coins} 🐟 จากการเล่นรอบนี้`;
+    title.textContent = `+${rw.exp} EXP · +${rw.coins} 🐟`;
+    if (rw.lvUp > 0) {
+      const up = document.createElement('span'); up.className = 'lvup'; up.style.display = 'block';
+      up.textContent = `🎉 เลเวลอัป! ตอนนี้ Lv ${rw.lv} (รวมโบนัส +${LV_COINS * rw.lvUp} 🐟)`;
+      title.append(up);
+      for (const s of rw.songs) {
+        const u = document.createElement('span'); u.className = 'lvup'; u.style.display = 'block';
+        u.textContent = `🎵 ปลดล็อกเพลงใหม่: ${s.title}!`; title.append(u);
+      }
+    }
     const sm = document.createElement('small');
     sm.textContent = rw.gifts.length ? `ได้กล่อง ${rw.gifts.length} ใบ แตะเพื่อเปิด!` : 'ทำคอมโบให้ถึง 50 เพื่อรับกล่องของขวัญ';
     title.append(sm);
@@ -2044,10 +2336,12 @@ $('#wardBtn').addEventListener('click', () => openWard('#title'));
 $('#rWard').addEventListener('click', () => openWard('#result'));
 $('#acctWard').addEventListener('click', () => { $('#acctMenu').hidden = true; openWard(curOverlay()); });
 $('#rankBtn').addEventListener('click', () => openRank('#title'));
-$('#rRank2').addEventListener('click', () => openRank('#result', G ? G.diff : S.diff));
+$('#rRank2').addEventListener('click', () => openRank('#result', G ? G.diff : S.diff, G && !G.tut ? G.songId : null));
 $('#rankClose').addEventListener('click', closeRank);
 // online: guests may play without an account; offline: ask for a name once
-$('#playBtn').addEventListener('click', () => { if (sb || getName()) startRun(); else openNameDlg('#title', startRun); });
+const play = mode => { playMode = mode; if (sb || getName()) startRun(); else openNameDlg('#title', startRun); };
+$('#playBtn').addEventListener('click', () => play('song'));
+$('#tutBtn').addEventListener('click', () => play('tutorial'));
 $('#setBtn').addEventListener('click', () => openSettings('#title'));
 $('#pauseBtn').addEventListener('click', pauseGame);
 $('#resumeBtn').addEventListener('click', resumeGame);
